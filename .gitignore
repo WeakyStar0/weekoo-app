@@ -1,0 +1,27 @@
+# Secrets and Credentials
+.env
+token.json
+
+# Dependencies (these are heavy and re-installed via npm install)
+node_modules/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# System Files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Build/Dist (if you eventually switch to TypeScript)
+dist/
+build/
