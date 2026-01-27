@@ -1,6 +1,7 @@
 # Secrets and Credentials
 .env
 token.json
+blacklist.txt
 
 # Dependencies (these are heavy and re-installed via npm install)
 node_modules/
