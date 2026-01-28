@@ -1,7 +1,7 @@
 require('dotenv').config();
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, Collection, GatewayIntentBits, Events, MessageFlags } = require('discord.js');
+const { Client, Collection, GatewayIntentBits, Events, MessageFlags, ActivityType } = require('discord.js');
 
 const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
@@ -26,25 +26,48 @@ for (const folder of commandFolders) {
 
 client.once(Events.ClientReady, (readyClient) => {
     console.log(`Logged in as ${readyClient.user.tag}. Handler is ready!`);
+
+    client.user.setPresence({
+        activities: [{ 
+            name: 'i like gambling', 
+            type: ActivityType.Streaming,
+            url: 'https://www.twitch.tv/weekoo_bot' 
+        }],
+        status: 'online', 
+    });
 });
 
 // interaction handler
-client.on('interactionCreate', async interaction => {
-    if (!interaction.isChatInputCommand()) return;
+client.on(Events.InteractionCreate, async interaction => {
+    
+    // 1. Handle Slash Commands
+    if (interaction.isChatInputCommand()) {
+        const command = client.commands.get(interaction.commandName);
 
-    const command = client.commands.get(interaction.commandName);
+        if (!command) return;
 
-    if (!command) return;
+        try {
+            await command.execute(interaction);
+        } catch (error) {
+            console.error(error);
+            if (interaction.replied || interaction.deferred) {
+                await interaction.followUp({ content: 'There was an error executing this command!', flags: [MessageFlags.Ephemeral] });
+            } else {
+                await interaction.reply({ content: 'There was an error executing this command!', flags: [MessageFlags.Ephemeral] });
+            }
+        }
+    } 
+    
+    // 2. Handle Autocomplete (For the Shop/Buy system)
+    else if (interaction.isAutocomplete()) {
+        const command = client.commands.get(interaction.commandName);
 
-    try {
-        await command.execute(interaction);
-    } catch (error) {
-        console.error(error);
-        // Fixed the ephemeral warning here as well
-        if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'There was an error executing this command!', flags: [MessageFlags.Ephemeral] });
-        } else {
-            await interaction.reply({ content: 'There was an error executing this command!', flags: [MessageFlags.Ephemeral] });
+        if (!command) return;
+
+        try {
+            await command.autocomplete(interaction);
+        } catch (error) {
+            console.error('Autocomplete Error:', error);
         }
     }
 });
