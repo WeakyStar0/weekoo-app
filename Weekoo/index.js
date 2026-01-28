@@ -51,9 +51,9 @@ client.on(Events.InteractionCreate, async interaction => {
         } catch (error) {
             console.error(error);
             if (interaction.replied || interaction.deferred) {
-                await interaction.followUp({ content: 'There was an error executing this command!', flags: [MessageFlags.Ephemeral] });
+                await interaction.followUp({ content: 'There was an error executing this command, sorry... <:9734konatacry:1465824995128246633>', flags: [MessageFlags.Ephemeral] });
             } else {
-                await interaction.reply({ content: 'There was an error executing this command!', flags: [MessageFlags.Ephemeral] });
+                await interaction.reply({ content: 'There was an error executing this command, sorry... <:9734konatacry:1465824995128246633>', flags: [MessageFlags.Ephemeral] });
             }
         }
     } 

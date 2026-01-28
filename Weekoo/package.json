@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.89",
     "axios": "^1.13.4",
     "discord.js": "^14.25.1",
     "dotenv": "^17.2.3",

@@ -158,7 +158,7 @@ module.exports = {
                     await db.query('UPDATE users SET weekoins = weekoins + $1 WHERE discord_id = $2', [reward, userId]);
                     embed.setColor('#00FF00').setFooter({ text: "Weekoo: 'Easy money!'" });
                     await i.update({ 
-                        content: `✅ **Correct!** You won **${reward}** Weekoins.`, 
+                        content: `✅ **Correct!** You won **${reward}** <:weekoin:1465807554927132883>.`, 
                         embeds: [embed], 
                         components: [disabledRow] 
                     });
@@ -166,7 +166,7 @@ module.exports = {
                     await db.query('UPDATE users SET weekoins = weekoins - 1 WHERE discord_id = $1', [userId]);
                     embed.setColor('#FF0000').setFooter({ text: "Weekoo: 'Embarrassing...'" });
                     await i.update({ 
-                        content: `❌ **Wrong!** The correct answer was: **${correctAnswer}**\nYou lost **1** Weekoin.`, 
+                        content: `❌ **Wrong!** The correct answer was: **${correctAnswer}**\nYou lost **1** <:weekoin:1465807554927132883>.`, 
                         embeds: [embed], 
                         components: [disabledRow] 
                     });
@@ -187,7 +187,7 @@ module.exports = {
                     });
                     
                     try {
-                        await interaction.editReply({ content: "⏰ **Time's up!** You lost **1** Weekoin.", components: [disabledRow] });
+                        await interaction.editReply({ content: "⏰ **Time's up!** You lost **1** <:weekoin:1465807554927132883>.", components: [disabledRow] });
                     } catch (e) {}
                 }
             });

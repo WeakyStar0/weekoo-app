@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
-const db = require('../../utils/db');
+const db = require('../../utils/db'); 
+const { getXpNeeded } = require('../../utils/leveling'); 
 
 module.exports = {
     data: new SlashCommandBuilder()
@@ -24,7 +25,6 @@ module.exports = {
         const discordId = interaction.user.id;
         const BOT_ID = '1465770404508340295';
 
-        // 1. ENSURE USER EXISTS (Only for humans)
         if (subcommand !== 'view' || (interaction.options.getUser('target')?.id !== BOT_ID)) {
             await db.query(
                 'INSERT INTO users (discord_id, username) VALUES ($1, $2) ON CONFLICT (discord_id) DO NOTHING',
@@ -32,7 +32,6 @@ module.exports = {
             );
         }
 
-        // 2. HANDLE EDIT/BIRTHDAY (Skipping code for brevity, keep your existing logic here...)
         if (subcommand === 'edit') {
             const newDesc = interaction.options.getString('description');
             await db.query('UPDATE users SET description = $1 WHERE discord_id = $2', [newDesc, discordId]);
@@ -46,14 +45,13 @@ module.exports = {
             return interaction.reply({ content: `🎂 Birthday set to **${month}/${day}**!`, flags: [MessageFlags.Ephemeral] });
         }
 
-        // 3. HANDLE VIEW (With the Weekoo Easter Egg)
         if (subcommand === 'view') {
             const target = interaction.options.getUser('target') || interaction.user;
 
-            // --- WEEKKOO EASTER EGG ---
+            // WEEKKOO EASTER EGG
             if (target.id === BOT_ID) {
                 const botEmbed = new EmbedBuilder()
-                    .setColor('#7300ff') // Gold color
+                    .setColor('#7300ff')
                     .setTitle(`👑 ${target.username} (Me :D)`)
                     .setThumbnail(target.displayAvatarURL({ dynamic: true }))
                     .setDescription('I do not earn Weekoins; I am the Weekoins.')
@@ -70,7 +68,6 @@ module.exports = {
                 return interaction.reply({ embeds: [botEmbed] });
             }
 
-            // --- NORMAL USER PROFILE ---
             const res = await db.query('SELECT * FROM users WHERE discord_id = $1', [target.id]);
 
             if (res.rows.length === 0) {
@@ -79,6 +76,10 @@ module.exports = {
 
             const data = res.rows[0];
             const bday = data.birthday_day ? `📅 ${data.birthday_day}/${data.birthday_month}` : 'Not set';
+            
+            const currentLevel = data.level || 1;
+            const currentXp = data.xp || 0;
+            const xpNeeded = getXpNeeded(currentLevel);
 
             const embed = new EmbedBuilder()
                 .setColor('#5865F2')
@@ -87,9 +88,9 @@ module.exports = {
                 .setDescription(data.description)
                 .addFields(
                     { name: '💰 Weekoins', value: `<:weekoin:1465807554927132883> ${data.weekoins.toLocaleString()}`, inline: true },
-                    { name: '⭐ Level', value: `Lvl ${data.level}`, inline: true },
+                    { name: '⭐ Level', value: `Lvl **${currentLevel}**\n(${currentXp.toLocaleString()} / ${xpNeeded.toLocaleString()} XP)`, inline: true },
                     { name: '🎂 Birthday', value: bday, inline: true },
-                    { name: '💎 Jackpots', value: `🏆 ${data.jackpots_won}`, inline: true },
+                    { name: '💎 Jackpots', value: `🏆 ${data.jackpots_won || 0}`, inline: true },
                     { name: '🆔 ID', value: data.discord_id, inline: false }
                 )
                 .setFooter({ text: 'Weekoo World' })

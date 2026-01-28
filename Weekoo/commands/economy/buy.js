@@ -55,7 +55,7 @@ module.exports = {
             const balance = userRes.rows[0]?.weekoins || 0;
 
             if (balance < totalPrice) {
-                return interaction.reply({ content: `You need 🪙 ${totalPrice.toLocaleString()} but you only have 🪙 ${balance.toLocaleString()}.`, flags: [MessageFlags.Ephemeral] });
+                return interaction.reply({ content: `You need <:weekoin:1465807554927132883> ${totalPrice.toLocaleString()} but you only have <:weekoin:1465807554927132883> ${balance.toLocaleString()}.`, flags: [MessageFlags.Ephemeral] });
             }
 
             // Inventory Limit Check

@@ -11,13 +11,13 @@ module.exports = {
         const embed = new EmbedBuilder()
             .setColor('#00FF00')
             .setTitle('🛒 Weekoo General Store')
-            .setDescription('Use `/buy <item_name>` to purchase something!')
+            .setDescription('Use `/buy <item_name>` to purchase something!\n\nUse `/inventory` to view your inventory!\n')
             .setTimestamp();
 
         res.rows.forEach(item => {
             embed.addFields({ 
                 name: `${item.emoji} ${item.name} (${item.rarity})`, 
-                value: `**Price:** 🪙 ${item.price.toLocaleString()}\n*${item.description}*`, 
+                value: `**Price:** <:weekoin:1465807554927132883> ${item.price.toLocaleString()}\n*${item.description}*`, 
                 inline: false 
             });
         });

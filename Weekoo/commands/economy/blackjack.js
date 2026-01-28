@@ -23,13 +23,12 @@ module.exports = {
 
         activeChannels.add(channelId);
 
-        // --- LOBBY PHASE ---
         let lobbyLeader = null;
         const players = new Map(); // Store: id -> { username, bet }
 
         const getLobbyEmbed = () => {
             const playerList = players.size > 0
-                ? Array.from(players.values()).map((p, i) => `${i === 0 ? '👑' : '•'} **${p.username}** (🪙 ${p.bet})`).join('\n')
+                ? Array.from(players.values()).map((p, i) => `${i === 0 ? '👑' : '•'} **${p.username}** (<:weekoin:1465807554927132883> ${p.bet})`).join('\n')
                 : '_No one yet..._';
 
             return new EmbedBuilder()
@@ -52,14 +51,16 @@ module.exports = {
 
         lobbyCollector.on('collect', async i => {
             // --- JOIN LOGIC ---
-            // --- JOIN LOGIC ---
             if (i.customId === 'bj_join') {
                 if (players.has(i.user.id)) return i.reply({ content: "You're already seated.", flags: [MessageFlags.Ephemeral] });
 
-                // If the leader already started the game, don't show the modal
                 if (lobbyCollector.ended) return i.reply({ content: "The game is already starting!", flags: [MessageFlags.Ephemeral] });
 
-                const modal = new ModalBuilder().setCustomId(`bj_modal_${i.user.id}`).setTitle('Place Your Bet');
+                // FIX IS HERE: We use `i.id` (unique interaction ID) instead of `i.user.id`
+                // This prevents multiple listeners from catching the same submit if clicked twice
+                const modalId = `bj_modal_${i.id}`;
+
+                const modal = new ModalBuilder().setCustomId(modalId).setTitle('Place Your Bet');
                 const betInput = new TextInputBuilder()
                     .setCustomId('bet_amount').setLabel('Weekoins to bet').setStyle(TextInputStyle.Short)
                     .setPlaceholder('Min: 10').setRequired(true);
@@ -67,11 +68,13 @@ module.exports = {
                 modal.addComponents(new ActionRowBuilder().addComponents(betInput));
                 await i.showModal(modal);
 
-                // Wait for modal submission
-                const submitted = await i.awaitModalSubmit({ time: 45000, filter: m => m.customId === `bj_modal_${i.user.id}` }).catch(() => null);
+                // Wait for this SPECIFIC modal instance
+                const submitted = await i.awaitModalSubmit({ time: 45000, filter: m => m.customId === modalId }).catch(() => null);
 
                 if (submitted) {
-                    // 1. IMMEDIATELY defer the reply to prevent "InteractionAlreadyReplied" or timeout
+                    // Check if it's already handled (Safety check)
+                    if (submitted.replied || submitted.deferred) return;
+                    
                     await submitted.deferReply({ flags: [MessageFlags.Ephemeral] });
 
                     try {
@@ -83,7 +86,6 @@ module.exports = {
                             return await submitted.editReply({ content: "Invalid bet or insufficient funds." });
                         }
 
-                        // Check if lobby ended while they were typing
                         if (lobbyCollector.ended) {
                             return await submitted.editReply({ content: "Too late! The game has already started." });
                         }
@@ -92,13 +94,11 @@ module.exports = {
                         if (!lobbyLeader) lobbyLeader = i.user.id;
 
                         await interaction.editReply({ embeds: [getLobbyEmbed()] });
-                        await submitted.editReply({ content: `You've joined with 🪙 ${bet}!` });
+                        await submitted.editReply({ content: `You've joined with <:weekoin:1465807554927132883> ${bet}!` });
 
                     } catch (err) {
                         console.error("Error in modal processing:", err);
-                        if (!submitted.replied) {
-                            await submitted.editReply({ content: "There was an error processing your bet." });
-                        }
+                        await submitted.editReply({ content: "There was an error processing your bet." });
                     }
                 }
             }
@@ -135,13 +135,11 @@ module.exports = {
 
 async function runGame(interaction, players, channelId) {
     // --- MONEY DEDUCTION PHASE ---
-    // Now that the game is ACTUALLY starting, we deduct the coins.
     for (const [id, p] of players) {
         const userRes = await db.query('SELECT weekoins FROM users WHERE discord_id = $1', [id]);
         const balance = userRes.rows[0]?.weekoins || 0;
 
         if (balance < p.bet) {
-            // If they spent their money during the 60s lobby, kick them.
             players.delete(id);
             continue;
         }
@@ -169,7 +167,7 @@ async function runGame(interaction, players, channelId) {
         components: [controls]
     });
 
-    const collector = msg.createMessageComponentCollector({ idle: 30000 }); // Increased timeout to 30s
+    const collector = msg.createMessageComponentCollector({ idle: 30000 });
 
     collector.on('collect', async i => {
         const p = players.get(i.user.id);
@@ -217,7 +215,7 @@ async function runGame(interaction, players, channelId) {
             } else note = 'Lost 💀';
 
             if (win > 0) await db.query('UPDATE users SET weekoins = weekoins + $1 WHERE discord_id = $2', [win, id]);
-            summary.push(`**${p.username}**: ${note} ${win > 0 ? `(+🪙${win})` : ''}`);
+            summary.push(`**${p.username}**: ${note} ${win > 0 ? `(+<:weekoin:1465807554927132883>${win})` : ''}`);
         }
 
         const finalEmbed = renderTable(players, dealer, true);
@@ -249,9 +247,14 @@ function calculate(hand) {
 function renderTable(players, dealer, reveal) {
     const embed = new EmbedBuilder().setColor('#2b2d31').setTitle('🃏 Weekoo’s Deal');
 
+    // Calculate the value of only the visible card when the second one is hidden
+    const visibleDealerScore = calculate([dealer.hand[0]]);
+    const fullDealerScore = calculate(dealer.hand);
+
     const dCards = reveal
-        ? dealer.hand.map(c => `[${c.name}${c.suit}]`).join(' ') + ` \n**Total: ${calculate(dealer.hand)}**`
-        : `[${dealer.hand[0].name}${dealer.hand[0].suit}] [??]`;
+        ? dealer.hand.map(c => `[${c.name}${c.suit}]`).join(' ') + ` \n**Total: ${fullDealerScore}**`
+        : `[${dealer.hand[0].name}${dealer.hand[0].suit}] [??]\n**Total: ${visibleDealerScore}**`;
+
     embed.addFields({ name: '<:konata_think:1465824984512332023> Dealer Hand', value: dCards, inline: false });
 
     for (const p of players.values()) {
