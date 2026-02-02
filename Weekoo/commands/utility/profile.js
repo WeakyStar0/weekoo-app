@@ -59,7 +59,7 @@ module.exports = {
                         { name: '💰 Weekoins', value: '<:weekoin:1465807554927132883> ∞ (1.79e+308)', inline: true },
                         { name: '⭐ Level', value: 'Lvl 999 (MAX)', inline: true },
                         { name: '🎂 Birthday', value: '📅 27/1', inline: true },
-                        { name: '💎 Jackpots', value: `🏆 I am the jackpot`, inline: true },
+                        { name: '<:w_:1467990168224137308><:e_:1467990186745925695><:e_:1467990186745925695><:k_:1467990202835537950><:o_:1467990217704079573><:o_:1467990217704079573> <:r_:1467990234275909663><:p_:1467990254958022778><:g_:1467990272263721023>', value: '• **⚔️:** cool sword\n• **⛏️:** pikakse\n• **🪖:** lego hat\n• **🪬:** git push --force', inline: false },
                         { name: '🆔 ID', value: BOT_ID, inline: false }
                     )
                     .setFooter({ text: 'Warning: Values too high for standard DB storage.' })
@@ -68,7 +68,19 @@ module.exports = {
                 return interaction.reply({ embeds: [botEmbed] });
             }
 
-            const res = await db.query('SELECT * FROM users WHERE discord_id = $1', [target.id]);
+            const res = await db.query(`
+                SELECT u.*, 
+                    w.name as weapon_name, w.emoji as weapon_emoji,
+                    p.name as pickaxe_name, p.emoji as pickaxe_emoji,
+                    a.name as armor_name, a.emoji as armor_emoji,
+                    t.name as trinket_name, t.emoji as trinket_emoji
+                FROM users u
+                LEFT JOIN items w ON u.weapon_id = w.id
+                LEFT JOIN items p ON u.pickaxe_id = p.id
+                LEFT JOIN items a ON u.armor_id = a.id
+                LEFT JOIN items t ON u.trinket_id = t.id
+                WHERE u.discord_id = $1
+            `, [target.id]);
 
             if (res.rows.length === 0) {
                 return interaction.reply({ content: "That user doesn't have a profile yet!", flags: [MessageFlags.Ephemeral] });
@@ -81,16 +93,26 @@ module.exports = {
             const currentXp = data.xp || 0;
             const xpNeeded = getXpNeeded(currentLevel);
 
+            // RPG info
+            const weapon = data.weapon_name ? `${data.weapon_emoji} ${data.weapon_name}` : 'No weapon';
+            const pickaxe = data.pickaxe_name ? `${data.pickaxe_emoji} ${data.pickaxe_name}` : 'No pickaxe';
+            const armor = data.armor_name ? `${data.armor_emoji} ${data.armor_name}` : 'No armor';
+            const trinket = data.trinket_name ? `${data.trinket_emoji} ${data.trinket_name}` : 'No trinket';
+
             const embed = new EmbedBuilder()
                 .setColor('#5865F2')
-                .setTitle(`${target.username}'s Profile`)
+                .setTitle(`<:star_decor:1468013007748726835>${target.username}'s Profile<:star_decor:1468013007748726835>`)
                 .setThumbnail(target.displayAvatarURL({ dynamic: true }))
                 .setDescription(data.description)
                 .addFields(
                     { name: '💰 Weekoins', value: `<:weekoin:1465807554927132883> ${data.weekoins.toLocaleString()}`, inline: true },
                     { name: '⭐ Level', value: `Lvl **${currentLevel}**\n(${currentXp.toLocaleString()} / ${xpNeeded.toLocaleString()} XP)`, inline: true },
                     { name: '🎂 Birthday', value: bday, inline: true },
-                    { name: '💎 Jackpots', value: `🏆 ${data.jackpots_won || 0}`, inline: true },
+                    { 
+                        name: '<:w_:1467990168224137308><:e_:1467990186745925695><:e_:1467990186745925695><:k_:1467990202835537950><:o_:1467990217704079573><:o_:1467990217704079573> <:r_:1467990234275909663><:p_:1467990254958022778><:g_:1467990272263721023>', 
+                        value: `• **⚔️:** ${weapon}\n• **⛏️:** ${pickaxe}\n• **🪖:** ${armor}\n• **🪬:** ${trinket}`, 
+                        inline: false 
+                    },
                     { name: '🆔 ID', value: data.discord_id, inline: false }
                 )
                 .setFooter({ text: 'Weekoo World' })
