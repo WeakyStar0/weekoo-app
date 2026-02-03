@@ -44,7 +44,7 @@ module.exports = {
                     WHEN 'Uncommon' THEN 4 
                     ELSE 5 END ASC`;
             }
-            
+
             const res = await db.query(query, params);
             return res.rows;
         };
@@ -67,9 +67,15 @@ module.exports = {
                 embed.setDescription(`No items found for the category: **${filterType}**.`);
             } else {
                 currentItems.forEach(item => {
+                    let statInfo = '';
+                    if (item.item_type === 'weapon') statInfo = `**Stat:** +${item.main_stat_value} DMG`;
+                    else if (item.item_type === 'armor') statInfo = `**Stat:** +${item.main_stat_value} DEF`;
+                    else if (item.item_type === 'pickaxe') statInfo = `**Stat:** +${item.main_stat_value} Luck`;
+                    else if (item.item_type === 'trinket') statInfo = `**Stat:** +${item.main_stat_value}% ${item.stat_modifier_type}`;
+
                     embed.addFields({
                         name: `${item.emoji} ${item.name} [${item.rarity}]`,
-                        value: `**Price:** 🪙 ${item.price.toLocaleString()}\n*${item.description}*`,
+                        value: `**Price:** <:weekoin:1465807554927132883> ${item.price.toLocaleString()}\n${statInfo}\n*${item.description}*`,
                         inline: false
                     });
                 });
@@ -124,7 +130,7 @@ module.exports = {
             if (i.customId.startsWith('sort_')) {
                 currentSort = i.customId.split('_')[1];
                 items = await getItems(currentSort);
-                currentPage = 0; 
+                currentPage = 0;
             }
 
             await i.update({
