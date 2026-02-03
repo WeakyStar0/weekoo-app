@@ -26,12 +26,41 @@ module.exports = {
         const BOT_ID = '1465770404508340295';
         const RPG_TITLE_EMOJIS = '<:w_:1467990168224137308><:e_:1467990186745925695><:e_:1467990186745925695><:k_:1467990202835537950><:o_:1467990217704079573><:o_:1467990217704079573> <:r_:1467990234275909663><:p_:1467990254958022778><:g_:1467990272263721023>';
 
-        // Ensure user exists
         if (subcommand !== 'view' || (interaction.options.getUser('target')?.id !== BOT_ID)) {
-            await db.query(
-                'INSERT INTO users (discord_id, username) VALUES ($1, $2) ON CONFLICT (discord_id) DO NOTHING',
+            const insertRes = await db.query(
+                'INSERT INTO users (discord_id, username) VALUES ($1, $2) ON CONFLICT (discord_id) DO NOTHING RETURNING *',
                 [discordId, interaction.user.username]
             );
+
+            if (insertRes.rows.length > 0) {
+                try {
+                    const starters = await db.query(
+                        "SELECT id, name, item_type FROM items WHERE name IN ('Stone Sword', 'Stone Pickaxe', 'Leather Vest')"
+                    );
+
+                    let weaponId = null, pickaxeId = null, armorId = null;
+
+                    for (const item of starters.rows) {
+                        await db.query(
+                            'INSERT INTO inventories (user_id, item_id, quantity) VALUES ($1, $2, 1) ON CONFLICT (user_id, item_id) DO UPDATE SET quantity = inventories.quantity + 1',
+                            [discordId, item.id]
+                        );
+
+                        if (item.item_type === 'weapon') weaponId = item.id;
+                        if (item.item_type === 'pickaxe') pickaxeId = item.id;
+                        if (item.item_type === 'armor') armorId = item.id;
+                    }
+
+                    await db.query(
+                        'UPDATE users SET weapon_id = $1, pickaxe_id = $2, armor_id = $3 WHERE discord_id = $4',
+                        [weaponId, pickaxeId, armorId, discordId]
+                    );
+
+                    console.log(`Starter kit given to ${interaction.user.username}`);
+                } catch (starterErr) {
+                    console.error("Failed to give starter kit:", starterErr);
+                }
+            }
         }
 
         if (subcommand === 'edit') {
@@ -50,7 +79,6 @@ module.exports = {
         if (subcommand === 'view') {
             const target = interaction.options.getUser('target') || interaction.user;
 
-            // --- WEEKKOO EASTER EGG ---
             if (target.id === BOT_ID) {
                 const botEmbed = new EmbedBuilder()
                     .setColor('#7300ff')
@@ -63,7 +91,7 @@ module.exports = {
                         { name: '🎂 Birthday', value: '📅 27/1', inline: true },
                         {
                             name: RPG_TITLE_EMOJIS,
-                            value: '• **⚔️:** God Slayer (∞ DMG)\n• **⛏️:** World Breaker (∞ Luck)\n• **🪖:** Admin Cloak (∞ Armor)\n• **🪬:** git push --force (+∞% everything)',
+                            value: '• **⚔︎:** God Slayer (∞ DMG)\n• **⛏:** World Breaker (∞ Luck)\n• **⛊:** Admin Cloak (∞ Armor)\n• **✪:** git push --force (+∞% everything)',
                             inline: false
                         },
                         { name: '🆔 ID', value: BOT_ID, inline: false }
@@ -74,7 +102,6 @@ module.exports = {
                 return interaction.reply({ embeds: [botEmbed] });
             }
 
-            // --- NORMAL USER PROFILE WITH JOINED EQUIPMENT ---
             const res = await db.query(`
                 SELECT u.*, 
                     w.name as w_name, w.emoji as w_emoji, w.main_stat_value as w_v,
@@ -98,7 +125,7 @@ module.exports = {
             let totalDmg = (data.base_damage || 10) + (data.w_v || 0);
             let totalDef = (data.base_defense || 0) + (data.a_v || 0);
             let totalLuck = (data.base_luck || 1) + (data.p_v || 0);
-            let totalMagic = (data.base_magic_damage || 5);
+            let totalMagic = (data.base_magic_damage || 0);
 
             if (data.t_type === 'damage') totalDmg = Math.floor(totalDmg * (1 + (data.t_v / 100)));
             if (data.t_type === 'defense') totalDef = Math.floor(totalDef * (1 + (data.t_v / 100)));
@@ -124,19 +151,18 @@ module.exports = {
                     {
                         name: RPG_TITLE_EMOJIS,
                         value:
-                            `• **⚔️:** ${weaponDesc}\n` +
-                            `• **⛏️:** ${pickaxeDesc}\n` +
-                            `• **🪖:** ${armorDesc}\n` +
-                            `• **🪬:** ${trinketDesc}`,
+                            `• **⚔︎:** ${weaponDesc}\n` +
+                            `• **⛏:** ${pickaxeDesc}\n` +
+                            `• **⛊:** ${armorDesc}\n` +
+                            `• **✪:** ${trinketDesc}`,
                         inline: true
                     },
                     {
-                        name: '📊 Current Stats',
+                        name: '📊 Stats',
                         value:
                             `**DMG:** ${totalDmg} / **MAGIC:** ${totalMagic}\n` +
                             `**DEF:** ${totalDef}\n` +
-                            `**LUCK:** ${totalLuck}\n` +
-                            ``,
+                            `**LUCK:** ${totalLuck}`,
                         inline: true
                     },
                     { name: '🆔 ID', value: data.discord_id, inline: false }

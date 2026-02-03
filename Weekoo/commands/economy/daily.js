@@ -1,6 +1,5 @@
 const { SlashCommandBuilder, EmbedBuilder, MessageFlags } = require('discord.js');
 const db = require('../../utils/db');
-// Import the new manager
 const { addXp } = require('../../utils/leveling'); 
 
 module.exports = {
