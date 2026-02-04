@@ -4,7 +4,7 @@ const db = require('../../utils/db');
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('sellall')
-        .setDescription('Sell all your blocks in one go.'),
+        .setDescription('Sell all your blocks and materials in one go.'),
 
     async execute(interaction) {
         const userId = interaction.user.id;
@@ -14,12 +14,14 @@ module.exports = {
                 SELECT inv.item_id, inv.quantity, i.price, i.name, i.emoji
                 FROM inventories inv
                 JOIN items i ON inv.item_id = i.id
-                WHERE inv.user_id = $1 AND i.item_type = 'block' AND inv.quantity > 0
+                WHERE inv.user_id = $1 
+                AND i.item_type IN ('block', 'material') 
+                AND inv.quantity > 0
             `, [userId]);
 
             if (res.rows.length === 0) {
                 return interaction.reply({ 
-                    content: "You don't have any blocks to sell! Go out there and start digging.", 
+                    content: "You don't have any blocks or materials to sell!", 
                     flags: [MessageFlags.Ephemeral] 
                 });
             }
@@ -40,7 +42,10 @@ module.exports = {
             await db.query(`
                 DELETE FROM inventories 
                 WHERE user_id = $1 
-                AND item_id IN (SELECT id FROM items WHERE item_type = 'block')
+                AND item_id IN (
+                    SELECT id FROM items 
+                    WHERE item_type IN ('block', 'material')
+                )
             `, [userId]);
 
             await db.query(
@@ -53,7 +58,7 @@ module.exports = {
             const embed = new EmbedBuilder()
                 .setColor('#00FF00')
                 .setTitle('💰 Bulk Sale Complete')
-                .setDescription(`You sold **${totalItems}** blocks and earned **<:weekoin:1465807554927132883> ${totalCoins.toLocaleString()}** Weekoins!`)
+                .setDescription(`You sold **${totalItems}** items and earned **<:weekoin:1465807554927132883> ${totalCoins.toLocaleString()}** Weekoins!`)
                 .addFields({ name: 'Inventory Breakdown', value: breakdown.join('\n').slice(0, 1024) })
                 .setFooter({ text: 'Weekoo Market' })
                 .setTimestamp();
@@ -61,7 +66,7 @@ module.exports = {
             await interaction.reply({ embeds: [embed] });
 
         } catch (err) {
-            await db.query('ROLLBACK');
+            await db.query('ROLLBACK'); 
             console.error('Sellall Error:', err);
             await interaction.reply({ content: "The market is currently overwhelmed. Try again later.", flags: [MessageFlags.Ephemeral] });
         }
