@@ -110,7 +110,7 @@ module.exports = {
                 .setColor(color)
                 // Use the cleaned category name here
                 .setTitle(`📚 Trivia: ${categoryName}`) 
-                .setDescription(`**${question}**\n\nDifficulty: **${selectedDifficulty.toUpperCase()}**\nWin: **+${reward}** | Fail: **-1**`)
+                .setDescription(`**${question}**\n\nDifficulty: **${selectedDifficulty.toUpperCase()}**\nWin: **+${reward}** | Fail: **-20**`)
                 .setFooter({ text: "You have 30 seconds to answer." });
 
             const row = new ActionRowBuilder();
@@ -163,10 +163,10 @@ module.exports = {
                         components: [disabledRow] 
                     });
                 } else {
-                    await db.query('UPDATE users SET weekoins = weekoins - 1 WHERE discord_id = $1', [userId]);
+                    await db.query('UPDATE users SET weekoins = weekoins - 20 WHERE discord_id = $1', [userId]);
                     embed.setColor('#FF0000').setFooter({ text: "Weekoo: 'Embarrassing...'" });
                     await i.update({ 
-                        content: `❌ **Wrong!** The correct answer was: **${correctAnswer}**\nYou lost **1** <:weekoin:1465807554927132883>.`, 
+                        content: `❌ **Wrong!** The correct answer was: **${correctAnswer}**\nYou lost **20** <:weekoin:1465807554927132883>.`, 
                         embeds: [embed], 
                         components: [disabledRow] 
                     });

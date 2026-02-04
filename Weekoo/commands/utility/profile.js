@@ -26,6 +26,7 @@ module.exports = {
         const BOT_ID = '1465770404508340295';
         const RPG_TITLE_EMOJIS = '<:w_:1467990168224137308><:e_:1467990186745925695><:e_:1467990186745925695><:k_:1467990202835537950><:o_:1467990217704079573><:o_:1467990217704079573> <:r_:1467990234275909663><:p_:1467990254958022778><:g_:1467990272263721023>';
 
+        // 1. ENSURE USER EXISTS & HANDLE STARTER KIT
         if (subcommand !== 'view' || (interaction.options.getUser('target')?.id !== BOT_ID)) {
             const insertRes = await db.query(
                 'INSERT INTO users (discord_id, username) VALUES ($1, $2) ON CONFLICT (discord_id) DO NOTHING RETURNING *',
@@ -79,6 +80,7 @@ module.exports = {
         if (subcommand === 'view') {
             const target = interaction.options.getUser('target') || interaction.user;
 
+            // --- BOT EASTER EGG ---
             if (target.id === BOT_ID) {
                 const botEmbed = new EmbedBuilder()
                     .setColor('#7300ff')
@@ -102,17 +104,20 @@ module.exports = {
                 return interaction.reply({ embeds: [botEmbed] });
             }
 
+            // --- NORMAL USER DATA FETCH ---
             const res = await db.query(`
                 SELECT u.*, 
                     w.name as w_name, w.emoji as w_emoji, w.main_stat_value as w_v,
                     p.name as p_name, p.emoji as p_emoji, p.main_stat_value as p_v,
                     a.name as a_name, a.emoji as a_emoji, a.main_stat_value as a_v,
-                    t.name as t_name, t.emoji as t_emoji, t.main_stat_value as t_v, t.stat_modifier_type as t_type
+                    t.name as t_name, t.emoji as t_emoji, t.main_stat_value as t_v, t.stat_modifier_type as t_type,
+                    d.name as dim_name, d.emoji as dim_emoji
                 FROM users u
                 LEFT JOIN items w ON u.weapon_id = w.id
                 LEFT JOIN items p ON u.pickaxe_id = p.id
                 LEFT JOIN items a ON u.armor_id = a.id
                 LEFT JOIN items t ON u.trinket_id = t.id
+                LEFT JOIN dimensions d ON u.dimension_id = d.id
                 WHERE u.discord_id = $1
             `, [target.id]);
 
@@ -122,18 +127,26 @@ module.exports = {
 
             const data = res.rows[0];
 
+            // --- CALCULATE COMBAT STATS ---
             let totalDmg = (data.base_damage || 10) + (data.w_v || 0);
             let totalDef = (data.base_defense || 0) + (data.a_v || 0);
             let totalLuck = (data.base_luck || 1) + (data.p_v || 0);
             let totalMagic = (data.base_magic_damage || 0);
+            
+            // --- HP CALCULATION: 100 Base + 1 per level ---
+            const currentLevel = data.level || 1;
+            let maxHp = (data.base_hp || 100) + (currentLevel - 1);
 
+            // Apply Trinket Multipliers (+X%)
             if (data.t_type === 'damage') totalDmg = Math.floor(totalDmg * (1 + (data.t_v / 100)));
             if (data.t_type === 'defense') totalDef = Math.floor(totalDef * (1 + (data.t_v / 100)));
             if (data.t_type === 'luck') totalLuck = Math.floor(totalLuck * (1 + (data.t_v / 100)));
+            if (data.t_type === 'health') maxHp = Math.floor(maxHp * (1 + (data.t_v / 100)));
 
+            const xpNeeded = getXpNeeded(currentLevel);
             const bday = data.birthday_day ? `📅 ${data.birthday_day}/${data.birthday_month}` : 'Not set';
-            const xpNeeded = getXpNeeded(data.level || 1);
 
+            // Equipment Descriptions
             const weaponDesc = data.w_name ? `${data.w_emoji} ${data.w_name} (+${data.w_v})` : 'No weapon';
             const pickaxeDesc = data.p_name ? `${data.p_emoji} ${data.p_name} (+${data.p_v})` : 'No pickaxe';
             const armorDesc = data.a_name ? `${data.a_emoji} ${data.a_name} (+${data.a_v})` : 'No armor';
@@ -143,10 +156,10 @@ module.exports = {
                 .setColor('#5865F2')
                 .setTitle(`<:star_decor:1468013007748726835> ${target.username}'s Profile <:star_decor:1468013007748726835>`)
                 .setThumbnail(target.displayAvatarURL({ dynamic: true }))
-                .setDescription(data.description)
+                .setDescription(`About: ${data.description}`)
                 .addFields(
                     { name: '💰 Weekoins', value: `<:weekoin:1465807554927132883> ${data.weekoins.toLocaleString()}`, inline: true },
-                    { name: '⭐ Level', value: `Lvl **${data.level}**\n(${data.xp.toLocaleString()} / ${xpNeeded.toLocaleString()} XP)`, inline: true },
+                    { name: '⭐ Level', value: `Lvl **${currentLevel}**\n(${data.xp.toLocaleString()} / ${xpNeeded.toLocaleString()} XP)`, inline: true },
                     { name: '🎂 Birthday', value: bday, inline: true },
                     {
                         name: RPG_TITLE_EMOJIS,
@@ -158,14 +171,18 @@ module.exports = {
                         inline: true
                     },
                     {
-                        name: '📊 Stats',
+                        name: '📊 Combat Stats',
                         value:
-                            `**DMG:** ${totalDmg} / **MAGIC:** ${totalMagic}\n` +
-                            `**DEF:** ${totalDef}\n` +
-                            `**LUCK:** ${totalLuck}`,
+                            `❤️ **HP:** ${maxHp}\n` +
+                            `⚔️ **DMG:** ${totalDmg} / **MAGIC:** ${totalMagic}\n` +
+                            `🛡️ **DEF:** ${totalDef}\n` +
+                            `🍀 **LUCK:** ${totalLuck}`,
                         inline: true
                     },
-                    { name: '🆔 ID', value: data.discord_id, inline: false }
+                    { name: '\u200B', value: '\u200B', inline: true },
+                    { name: '📍 Location', value: `${data.dim_emoji || '🌍'} **${data.dim_name || 'Overworld'}**`, inline: true },
+                    { name: '⚡ Energy', value: `${data.energy} / 100`, inline: true },
+                    { name: '🆔 ID', value: data.discord_id, inline: true }
                 )
                 .setFooter({ text: 'Weekoo World' })
                 .setTimestamp();
